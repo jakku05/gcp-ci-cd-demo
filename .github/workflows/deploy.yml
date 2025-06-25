@@ -10,25 +10,47 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Step 1: Checkout code from GitHub
       - name: Checkout code
         uses: actions/checkout@v3
 
+      # Step 2: Authenticate with GCP using service account key
       - name: Authenticate with GCP
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
+      # Step 3: Set up Google Cloud CLI
       - name: Set up Google Cloud CLI
         uses: google-github-actions/setup-gcloud@v1
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           install_components: 'beta'
 
+      # Step 4: Echo project ID for verification
       - name: Echo project ID
         run: |
           echo "Project ID: ${{ secrets.GCP_PROJECT_ID }}"
 
-      # Task 1: Configure Docker for Artifact Registry
-      - name: Configure Docker
+      # Step 5: Configure Docker to authenticate with Artifact Registry
+      - name: Configure Docker for Artifact Registry
         run: |
           gcloud auth configure-docker us-central1-docker.pkg.dev
+
+      # Step 6: Build and push Docker image to Artifact Registry
+      - name: Build and Push Docker image
+        run: |
+          IMAGE="us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/my-repo/flask-app"
+          docker build -t $IMAGE .
+          docker push $IMAGE
+
+      # Step 7: Deploy the image to Cloud Run
+      - name: Deploy to Cloud Run
+        run: |
+          IMAGE="us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/my-repo/flask-app"
+          gcloud run deploy flask-app \
+            --image=$IMAGE \
+            --region=us-central1 \
+            --platform=managed \
+            --allow-unauthenticated \
+            --project=${{ secrets.GCP_PROJECT_ID }}
